@@ -8,11 +8,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var (
-	userCPF          = make(map[int64]string)
-	waitingForCPF    = make(map[int64]bool)
-)
-
 func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chatID := message.Chat.ID
 
@@ -28,7 +23,9 @@ func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	waitingForCPF[chatID] = true
+	if err := setWaitingForCPF(chatID, true); err != nil {
+		log.Printf("Error setting waiting state: %v", err)
+	}
 }
 
 func handleConsultar(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
@@ -40,6 +37,7 @@ func handleConsultar(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func main() {
 	godotenv.Load()
+	initRedis()
 
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
@@ -65,9 +63,11 @@ func main() {
 
 		chatID := update.Message.Chat.ID
 
-		if waitingForCPF[chatID] && update.Message.Command() == "" {
-			userCPF[chatID] = update.Message.Text
-			waitingForCPF[chatID] = false
+		if isWaitingForCPF(chatID) && update.Message.Command() == "" {
+			if err := storeCPF(chatID, update.Message.Text); err != nil {
+				log.Printf("Error storing CPF: %v", err)
+			}
+			setWaitingForCPF(chatID, false)
 
 			msg := tgbotapi.NewMessage(chatID, "CPF registrado com sucesso!")
 			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
