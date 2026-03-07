@@ -8,6 +8,36 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	userCPF          = make(map[int64]string)
+	waitingForCPF    = make(map[int64]bool)
+)
+
+func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	chatID := message.Chat.ID
+
+	greeting := tgbotapi.NewMessage(chatID, "Olá! Bem-vindo ao AuraFlow! 🤖\nEstou aqui para te ajudar com seus boletos.")
+	if _, err := bot.Send(greeting); err != nil {
+		log.Printf("Error sending message: %v", err)
+		return
+	}
+
+	cpfRequest := tgbotapi.NewMessage(chatID, "Por favor, informe o seu CPF:")
+	if _, err := bot.Send(cpfRequest); err != nil {
+		log.Printf("Error sending message: %v", err)
+		return
+	}
+
+	waitingForCPF[chatID] = true
+}
+
+func handleConsultar(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
+	msg := tgbotapi.NewMessage(message.Chat.ID, "Consultando boletos")
+	if _, err := bot.Send(msg); err != nil {
+		log.Printf("Error sending message: %v", err)
+	}
+}
+
 func main() {
 	godotenv.Load()
 
@@ -33,11 +63,33 @@ func main() {
 			continue
 		}
 
-		if update.Message.Command() == "start" {
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Hello, World!")
+		chatID := update.Message.Chat.ID
+
+		if waitingForCPF[chatID] && update.Message.Command() == "" {
+			userCPF[chatID] = update.Message.Text
+			waitingForCPF[chatID] = false
+
+			msg := tgbotapi.NewMessage(chatID, "CPF registrado com sucesso!")
+			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
+				tgbotapi.NewKeyboardButtonRow(
+					tgbotapi.NewKeyboardButton("Consultar boletos"),
+				),
+			)
 			if _, err := bot.Send(msg); err != nil {
 				log.Printf("Error sending message: %v", err)
 			}
+			continue
+		}
+
+		switch update.Message.Command() {
+		case "start":
+			handleStart(bot, update.Message)
+		case "consultar":
+			handleConsultar(bot, update.Message)
+		}
+
+		if update.Message.Text == "Consultar boletos" {
+			handleConsultar(bot, update.Message)
 		}
 	}
 }
