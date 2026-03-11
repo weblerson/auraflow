@@ -1,4 +1,4 @@
-package main
+package crypto
 
 import (
 	"crypto/aes"
@@ -9,7 +9,7 @@ import (
 	"io"
 )
 
-func encrypt(plaintext string, key []byte) (string, error) {
+func Encrypt(plaintext string, key []byte) (string, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
@@ -29,7 +29,7 @@ func encrypt(plaintext string, key []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func decrypt(encoded string, key []byte) (string, error) {
+func Decrypt(encoded string, key []byte) (string, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		return "", err

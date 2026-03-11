@@ -1,10 +1,9 @@
-package main
+package repository
 
 import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -17,7 +16,7 @@ var (
 	cpfTTL        = 24 * time.Hour
 )
 
-func initRedis() {
+func InitRedis() error {
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     getEnvOrDefault("REDIS_ADDR", "localhost:6379"),
 		Password: os.Getenv("REDIS_PASSWORD"),
@@ -28,24 +27,33 @@ func initRedis() {
 	defer cancel()
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
-	log.Println("Connected to Redis")
 
 	keyHex := os.Getenv("ENCRYPTION_KEY")
 	if keyHex == "" {
-		log.Fatal("ENCRYPTION_KEY environment variable is required (32 bytes hex-encoded)")
+		return fmt.Errorf("ENCRYPTION_KEY environment variable is required (32 bytes hex-encoded)")
 	}
 
 	var err error
 	encryptionKey, err = hex.DecodeString(keyHex)
 	if err != nil || len(encryptionKey) != 32 {
-		log.Fatal("ENCRYPTION_KEY must be 64 hex characters (32 bytes for AES-256)")
+		return fmt.Errorf("ENCRYPTION_KEY must be 64 hex characters (32 bytes for AES-256)")
 	}
+
+	return nil
 }
 
-func storeCPF(chatID int64, cpf string) error {
-	encrypted, err := encrypt(cpf, encryptionKey)
+func GetRedis() *redis.Client {
+	return rdb
+}
+
+func GetEncryptionKey() []byte {
+	return encryptionKey
+}
+
+func StoreCPF(chatID int64, cpf string, encryptFn func(string, []byte) (string, error)) error {
+	encrypted, err := encryptFn(cpf, encryptionKey)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt CPF: %w", err)
 	}
@@ -55,7 +63,7 @@ func storeCPF(chatID int64, cpf string) error {
 	return rdb.Set(ctx, key, encrypted, cpfTTL).Err()
 }
 
-func getCPF(chatID int64) (string, error) {
+func GetCPF(chatID int64, decryptFn func(string, []byte) (string, error)) (string, error) {
 	ctx := context.Background()
 	key := fmt.Sprintf("cpf:%d", chatID)
 
@@ -67,10 +75,10 @@ func getCPF(chatID int64) (string, error) {
 		return "", fmt.Errorf("failed to get CPF: %w", err)
 	}
 
-	return decrypt(encrypted, encryptionKey)
+	return decryptFn(encrypted, encryptionKey)
 }
 
-func setWaitingForCPF(chatID int64, waiting bool) error {
+func SetWaitingForCPF(chatID int64, waiting bool) error {
 	ctx := context.Background()
 	key := fmt.Sprintf("waiting_cpf:%d", chatID)
 
@@ -80,7 +88,7 @@ func setWaitingForCPF(chatID int64, waiting bool) error {
 	return rdb.Set(ctx, key, "1", 5*time.Minute).Err()
 }
 
-func isWaitingForCPF(chatID int64) bool {
+func IsWaitingForCPF(chatID int64) bool {
 	ctx := context.Background()
 	key := fmt.Sprintf("waiting_cpf:%d", chatID)
 

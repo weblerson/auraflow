@@ -79,6 +79,37 @@ go build -o auraflow .
 
 The "Consultar boletos" button is also available in the chat keyboard after registering a CPF.
 
+## Project Structure
+
+```
+auraflow/
+├── main.go                # Entry point. Loads .env and starts the bot.
+├── domain/
+│   └── boleto.go          # Boleto struct and BoletoAPI interface.
+├── adapter/
+│   └── mock_api.go        # Mock API that reads from mock_boletos.json.
+├── repository/
+│   └── redis.go           # Functions to save/retrieve CPF from Redis.
+├── crypto/
+│   └── aes.go             # AES-256-GCM encryption for CPF.
+├── service/
+│   └── boleto_service.go  # Business logic: retrieves CPF, decrypts, and calls the API.
+├── handler/
+│   └── telegram.go        # Handles /start and /consultar commands from the bot.
+├── .env                   # Environment variables (not committed).
+├── go.mod
+└── go.sum
+```
+
+### Layers
+
+- **domain**: Core business entities and interfaces.
+- **adapter**: External API implementations (currently a mock).
+- **repository**: Data persistence layer (Redis).
+- **crypto**: Encryption utilities.
+- **service**: Application logic and orchestration.
+- **handler**: Telegram bot message handling.
+
 ## Security
 
 - CPF data is encrypted with **AES-256-GCM** before being stored in Redis.

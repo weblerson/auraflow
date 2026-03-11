@@ -1,0 +1,16 @@
+[
+  {
+    "linhaDigitavel": "00190.00009 01234.567890 01234.567890 1 890000000015000",
+    "valor": 150.00,
+    "vencimento": "2026-03-20",
+    "descricao": "Fatura Renner",
+    "status": "Pendente"
+  },
+  {
+    "linhaDigitavel": "34191.09008 10799.489181 71111.450006 8 89150000025050",
+    "valor": 250.50,
+    "vencimento": "2026-03-05",
+    "descricao": "Fatura Cartão de Crédito",
+    "status": "Vencido"
+  }
+]
