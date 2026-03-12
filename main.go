@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 
+	"auraflow/view"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 )
@@ -11,14 +13,12 @@ import (
 func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chatID := message.Chat.ID
 
-	greeting := tgbotapi.NewMessage(chatID, "Olá! Bem-vindo ao AuraFlow! 🤖\nEstou aqui para te ajudar com seus boletos.")
-	if _, err := bot.Send(greeting); err != nil {
+	if _, err := bot.Send(view.Greeting(chatID)); err != nil {
 		log.Printf("Error sending message: %v", err)
 		return
 	}
 
-	cpfRequest := tgbotapi.NewMessage(chatID, "Por favor, informe o seu CPF:")
-	if _, err := bot.Send(cpfRequest); err != nil {
+	if _, err := bot.Send(view.CPFRequest(chatID)); err != nil {
 		log.Printf("Error sending message: %v", err)
 		return
 	}
@@ -29,8 +29,7 @@ func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 }
 
 func handleConsultar(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	msg := tgbotapi.NewMessage(message.Chat.ID, "Consultando boletos")
-	if _, err := bot.Send(msg); err != nil {
+	if _, err := bot.Send(view.ConsultarBoletos(message.Chat.ID)); err != nil {
 		log.Printf("Error sending message: %v", err)
 	}
 }
@@ -69,13 +68,7 @@ func main() {
 			}
 			setWaitingForCPF(chatID, false)
 
-			msg := tgbotapi.NewMessage(chatID, "CPF registrado com sucesso!")
-			msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
-				tgbotapi.NewKeyboardButtonRow(
-					tgbotapi.NewKeyboardButton("Consultar boletos"),
-				),
-			)
-			if _, err := bot.Send(msg); err != nil {
+			if _, err := bot.Send(view.CPFSuccess(chatID)); err != nil {
 				log.Printf("Error sending message: %v", err)
 			}
 			continue

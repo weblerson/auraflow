@@ -8,18 +8,20 @@ import (
 	"os"
 	"time"
 
+	"auraflow/model"
+	"auraflow/util"
+
 	"github.com/redis/go-redis/v9"
 )
 
 var (
 	rdb           *redis.Client
 	encryptionKey []byte
-	cpfTTL        = 24 * time.Hour
 )
 
 func initRedis() {
 	rdb = redis.NewClient(&redis.Options{
-		Addr:     getEnvOrDefault("REDIS_ADDR", "localhost:6379"),
+		Addr:     util.GetEnvOrDefault("REDIS_ADDR", "localhost:6379"),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})
@@ -45,29 +47,11 @@ func initRedis() {
 }
 
 func storeCPF(chatID int64, cpf string) error {
-	encrypted, err := encrypt(cpf, encryptionKey)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt CPF: %w", err)
-	}
-
-	ctx := context.Background()
-	key := fmt.Sprintf("cpf:%d", chatID)
-	return rdb.Set(ctx, key, encrypted, cpfTTL).Err()
+	return model.StoreCPF(rdb, encryptionKey, chatID, cpf)
 }
 
 func getCPF(chatID int64) (string, error) {
-	ctx := context.Background()
-	key := fmt.Sprintf("cpf:%d", chatID)
-
-	encrypted, err := rdb.Get(ctx, key).Result()
-	if err == redis.Nil {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to get CPF: %w", err)
-	}
-
-	return decrypt(encrypted, encryptionKey)
+	return model.GetCPF(rdb, encryptionKey, chatID)
 }
 
 func setWaitingForCPF(chatID int64, waiting bool) error {
@@ -89,11 +73,4 @@ func isWaitingForCPF(chatID int64) bool {
 		return false
 	}
 	return val == "1"
-}
-
-func getEnvOrDefault(key, defaultVal string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-	return defaultVal
 }
