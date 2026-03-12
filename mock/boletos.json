@@ -1,0 +1,52 @@
+{
+  "boletos": [
+    {
+      "id": "BOL001",
+      "numero": "12345.67890.00000.000000.000001 1",
+      "valor": 150.00,
+      "nome_sacado": "JOAO SILVA",
+      "cpf_sacado": "12345678900",
+      "data_vencimento": "2026-03-15T00:00:00Z",
+      "data_pagamento": null,
+      "valor_pago": 0,
+      "situacao": "PENDENTE",
+      "nome_beneficiario": "TECHBANK S.A."
+    },
+    {
+      "id": "BOL002",
+      "numero": "12345.67890.00000.000000.000002 2",
+      "valor": 275.50,
+      "nome_sacado": "JOAO SILVA",
+      "cpf_sacado": "12345678900",
+      "data_vencimento": "2026-03-20T00:00:00Z",
+      "data_pagamento": null,
+      "valor_pago": 0,
+      "situacao": "PENDENTE",
+      "nome_beneficiario": "TECHBANK S.A."
+    },
+    {
+      "id": "BOL003",
+      "numero": "12345.67890.00000.000000.000003 3",
+      "valor": 89.90,
+      "nome_sacado": "JOAO SILVA",
+      "cpf_sacado": "12345678900",
+      "data_vencimento": "2026-02-28T00:00:00Z",
+      "data_pagamento": "2026-02-27T14:30:00Z",
+      "valor_pago": 89.90,
+      "situacao": "PAGO",
+      "nome_beneficiario": "TECHBANK S.A."
+    },
+    {
+      "id": "BOL004",
+      "numero": "12345.67890.00000.000000.000004 4",
+      "valor": 1200.00,
+      "nome_sacado": "JOAO SILVA",
+      "cpf_sacado": "12345678900",
+      "data_vencimento": "2026-01-10T00:00:00Z",
+      "data_pagamento": null,
+      "valor_pago": 0,
+      "situacao": "VENCIDO",
+      "nome_beneficiario": "TECHBANK S.A."
+    }
+  ]
+}
