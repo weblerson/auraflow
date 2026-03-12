@@ -23,6 +23,27 @@ func StoreCPF(rdb *redis.Client, encryptionKey []byte, chatID int64, cpf string)
 	return rdb.Set(ctx, key, encrypted, cpfTTL).Err()
 }
 
+func SetWaitingForCPF(rdb *redis.Client, chatID int64, waiting bool) error {
+	ctx := context.Background()
+	key := fmt.Sprintf("waiting_cpf:%d", chatID)
+
+	if !waiting {
+		return rdb.Del(ctx, key).Err()
+	}
+	return rdb.Set(ctx, key, "1", 5*time.Minute).Err()
+}
+
+func IsWaitingForCPF(rdb *redis.Client, chatID int64) bool {
+	ctx := context.Background()
+	key := fmt.Sprintf("waiting_cpf:%d", chatID)
+
+	val, err := rdb.Get(ctx, key).Result()
+	if err != nil {
+		return false
+	}
+	return val == "1"
+}
+
 func GetCPF(rdb *redis.Client, encryptionKey []byte, chatID int64) (string, error) {
 	ctx := context.Background()
 	key := fmt.Sprintf("cpf:%d", chatID)

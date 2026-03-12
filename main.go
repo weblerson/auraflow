@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 
+	"auraflow/model"
+	"auraflow/util"
 	"auraflow/view"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -23,7 +25,7 @@ func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	if err := setWaitingForCPF(chatID, true); err != nil {
+	if err := model.SetWaitingForCPF(util.Rdb, chatID, true); err != nil {
 		log.Printf("Error setting waiting state: %v", err)
 	}
 }
@@ -36,7 +38,7 @@ func handleConsultar(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 
 func main() {
 	godotenv.Load()
-	initRedis()
+	util.InitRedis()
 
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
@@ -62,11 +64,11 @@ func main() {
 
 		chatID := update.Message.Chat.ID
 
-		if isWaitingForCPF(chatID) && update.Message.Command() == "" {
-			if err := storeCPF(chatID, update.Message.Text); err != nil {
+		if model.IsWaitingForCPF(util.Rdb, chatID) && update.Message.Command() == "" {
+			if err := model.StoreCPF(util.Rdb, util.EncryptionKey, chatID, update.Message.Text); err != nil {
 				log.Printf("Error storing CPF: %v", err)
 			}
-			setWaitingForCPF(chatID, false)
+			model.SetWaitingForCPF(util.Rdb, chatID, false)
 
 			if _, err := bot.Send(view.CPFSuccess(chatID)); err != nil {
 				log.Printf("Error sending message: %v", err)
