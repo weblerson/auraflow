@@ -4,13 +4,29 @@ import (
 	"log"
 	"os"
 
+	"auraflow/controller"
 	"auraflow/model"
+	"auraflow/repository"
 	"auraflow/util"
 	"auraflow/view"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/joho/godotenv"
 )
+
+var financeCtrl *controller.FinanceController
+
+func init() {
+	godotenv.Load()
+	util.InitRedis()
+
+	repo, err := repository.NewMockFinanceRepository("mock/boletos.json")
+	if err != nil {
+		log.Printf("Warning: failed to load mock repository: %v", err)
+	} else {
+		financeCtrl = controller.NewFinanceController(repo)
+	}
+}
 
 func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 	chatID := message.Chat.ID
@@ -31,15 +47,41 @@ func handleStart(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 }
 
 func handleConsultar(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
-	if _, err := bot.Send(view.ConsultarBoletos(message.Chat.ID)); err != nil {
+	cpf, err := model.GetCPF(util.Rdb, util.EncryptionKey, message.Chat.ID)
+	if err != nil {
+		log.Printf("Error getting CPF: %v", err)
+		cpf = ""
+	}
+
+	if cpf == "" {
+		if _, err := bot.Send(view.CPFNotFound(message.Chat.ID)); err != nil {
+			log.Printf("Error sending message: %v", err)
+		}
+		return
+	}
+
+	boletos, err := financeCtrl.ConsultarBoletos(cpf)
+	if err != nil {
+		log.Printf("Error consulting boletos: %v", err)
+		if _, err := bot.Send(view.ErrorConsultingBoletos(message.Chat.ID)); err != nil {
+			log.Printf("Error sending message: %v", err)
+		}
+		return
+	}
+
+	if len(boletos) == 0 {
+		if _, err := bot.Send(view.NoBoletosFound(message.Chat.ID, cpf)); err != nil {
+			log.Printf("Error sending message: %v", err)
+		}
+		return
+	}
+
+	if _, err := bot.Send(view.FormatBoletos(message.Chat.ID, cpf, boletos)); err != nil {
 		log.Printf("Error sending message: %v", err)
 	}
 }
 
 func main() {
-	godotenv.Load()
-	util.InitRedis()
-
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
 		log.Fatal("TELEGRAM_BOT_TOKEN environment variable is required")
