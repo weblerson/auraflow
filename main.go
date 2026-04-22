@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"auraflow/controller"
 	"auraflow/model"
@@ -76,8 +77,10 @@ func handleConsultar(bot *tgbotapi.BotAPI, message *tgbotapi.Message) {
 		return
 	}
 
-	if _, err := bot.Send(view.FormatBoletos(message.Chat.ID, cpf, boletos)); err != nil {
-		log.Printf("Error sending message: %v", err)
+	for _, boleto := range boletos {
+		if _, err := bot.Send(view.FormatBoleto(message.Chat.ID, boleto)); err != nil {
+			log.Printf("Error sending message: %v", err)
+		}
 	}
 }
 
@@ -100,6 +103,31 @@ func main() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
+		if update.CallbackQuery != nil {
+			callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "")
+			if _, err := bot.Request(callback); err != nil {
+				log.Printf("Error answering callback: %v", err)
+			}
+
+			chatID := update.CallbackQuery.Message.Chat.ID
+			data := update.CallbackQuery.Data
+
+			if strings.HasPrefix(data, "ignorar:") {
+				deleteMsg := tgbotapi.NewDeleteMessage(chatID, update.CallbackQuery.Message.MessageID)
+				if _, err := bot.Request(deleteMsg); err != nil {
+					log.Printf("Error deleting message: %v", err)
+				}
+			}
+
+			if strings.HasPrefix(data, "pagar:") {
+				boletoID := strings.TrimPrefix(data, "pagar:")
+				if _, err := bot.Send(view.BoletoPago(chatID, boletoID)); err != nil {
+					log.Printf("Error sending message: %v", err)
+				}
+			}
+			continue
+		}
+
 		if update.Message == nil {
 			continue
 		}

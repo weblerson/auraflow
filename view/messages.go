@@ -38,28 +38,28 @@ func ErrorConsultingBoletos(chatID int64) tgbotapi.MessageConfig {
 	return tgbotapi.NewMessage(chatID, "Erro ao consultar boletos. Tente novamente mais tarde.")
 }
 
-func FormatBoletos(chatID int64, cpf string, boletos []model.Boleto) tgbotapi.MessageConfig {
-	var text string
-
-	if len(boletos) == 1 {
-		text = fmt.Sprintf("📄 Boleto encontrado para CPF %s:\n\n", cpf)
-	} else {
-		text = fmt.Sprintf("📄 Boletos encontrados para CPF %s (%d):\n\n", cpf, len(boletos))
+func FormatBoleto(chatID int64, boleto model.Boleto) tgbotapi.MessageConfig {
+	situacaoEmoji := getSituacaoEmoji(boleto.Situacao)
+	text := fmt.Sprintf("%s %s\n", situacaoEmoji, boleto.Situacao)
+	text += fmt.Sprintf("Valor: R$ %.2f\n", boleto.Valor)
+	text += fmt.Sprintf("Vencimento: %s\n", boleto.DataVencimento.Format("02/01/2006"))
+	text += fmt.Sprintf("Beneficiário: %s\n", boleto.NomeBeneficiario)
+	if boleto.Situacao == "PAGO" && boleto.DataPagamento != nil {
+		text += fmt.Sprintf("Pago em: %s\n", boleto.DataPagamento.Format("02/01/2006"))
 	}
 
-	for i, b := range boletos {
-		situacaoEmoji := getSituacaoEmoji(b.Situacao)
-		text += fmt.Sprintf("%d. %s %s\n", i+1, situacaoEmoji, b.Situacao)
-		text += fmt.Sprintf("   Valor: R$ %.2f\n", b.Valor)
-		text += fmt.Sprintf("   Vencimento: %s\n", b.DataVencimento.Format("02/01/2006"))
-		text += fmt.Sprintf("   Beneficiário: %s\n", b.NomeBeneficiario)
-		if b.Situacao == "PAGO" && b.DataPagamento != nil {
-			text += fmt.Sprintf("   Pago em: %s\n", b.DataPagamento.Format("02/01/2006"))
-		}
-		text += "\n"
-	}
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Pagar", "pagar:"+boleto.ID),
+			tgbotapi.NewInlineKeyboardButtonData("Ignorar", "ignorar:"+boleto.ID),
+		),
+	)
+	return msg
+}
 
-	return tgbotapi.NewMessage(chatID, text)
+func BoletoPago(chatID int64, boletoID string) tgbotapi.MessageConfig {
+	return tgbotapi.NewMessage(chatID, fmt.Sprintf("Boleto %s pago.", boletoID))
 }
 
 func getSituacaoEmoji(situacao string) string {
