@@ -9,7 +9,7 @@ import (
 )
 
 func Greeting(chatID int64) tgbotapi.MessageConfig {
-	return tgbotapi.NewMessage(chatID, "Olá! Bem-vindo ao AuraFlow! 🤖\nEstou aqui para te ajudar com seus boletos.")
+	return tgbotapi.NewMessage(chatID, "Olá! Bem-vindo ao AuraFlow! 🤖\nEstou aqui para centralizar e pagar suas faturas.")
 }
 
 func CPFRequest(chatID int64) tgbotapi.MessageConfig {
@@ -17,10 +17,17 @@ func CPFRequest(chatID int64) tgbotapi.MessageConfig {
 }
 
 func CPFSuccess(chatID int64) tgbotapi.MessageConfig {
-	msg := tgbotapi.NewMessage(chatID, "CPF registrado com sucesso!")
+	msg := tgbotapi.NewMessage(chatID, "CPF registrado com sucesso! 🎉\n\nO que você deseja consultar no seu Open Finance?")
+	msg.ParseMode = "Markdown"
+
+	// Menu customizado com botões separados
 	msg.ReplyMarkup = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton("Consultar boletos"),
+			tgbotapi.NewKeyboardButton("📄 Boletos e Faturas"),
+			tgbotapi.NewKeyboardButton("💸 Empréstimos"),
+		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton("📊 Entradas e Saídas (Extrato)"),
 		),
 	)
 	return msg
@@ -31,48 +38,73 @@ func CPFNotFound(chatID int64) tgbotapi.MessageConfig {
 }
 
 func NoBoletosFound(chatID int64, cpf string) tgbotapi.MessageConfig {
-	return tgbotapi.NewMessage(chatID, "Nenhum boleto encontrado para o CPF: "+cpf)
+	return tgbotapi.NewMessage(chatID, "Nenhuma fatura pendente ou contrato encontrado para suas contas conectadas.")
 }
 
 func ErrorConsultingBoletos(chatID int64) tgbotapi.MessageConfig {
-	return tgbotapi.NewMessage(chatID, "Erro ao consultar boletos. Tente novamente mais tarde.")
-}
-
-func FormatBoleto(chatID int64, boleto model.Boleto) tgbotapi.MessageConfig {
-	situacaoEmoji := getSituacaoEmoji(boleto.Situacao)
-	text := fmt.Sprintf("%s %s\n", situacaoEmoji, boleto.Situacao)
-	text += fmt.Sprintf("Valor: R$ %.2f\n", boleto.Valor)
-	text += fmt.Sprintf("Vencimento: %s\n", boleto.DataVencimento.Format("02/01/2006"))
-	text += fmt.Sprintf("Beneficiário: %s\n", boleto.NomeBeneficiario)
-	if boleto.Situacao == "PAGO" && boleto.DataPagamento != nil {
-		text += fmt.Sprintf("Pago em: %s\n", boleto.DataPagamento.Format("02/01/2006"))
-	}
-
-	msg := tgbotapi.NewMessage(chatID, text)
-	msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Pagar", "pagar:"+boleto.ID),
-			tgbotapi.NewInlineKeyboardButtonData("Ignorar", "ignorar:"+boleto.ID),
-		),
-	)
-	return msg
-}
-
-func BoletoPago(chatID int64, boletoID string) tgbotapi.MessageConfig {
-	return tgbotapi.NewMessage(chatID, fmt.Sprintf("Boleto %s pago.", boletoID))
+	return tgbotapi.NewMessage(chatID, "Erro ao conectar com as instituições financeiras. Tente novamente mais tarde.")
 }
 
 func getSituacaoEmoji(situacao string) string {
 	switch situacao {
 	case "PAGO":
 		return "✅"
-	case "PENDENTE":
-		return "⏳"
 	case "VENCIDO":
-		return "⚠️"
-	case "CANCELADO":
 		return "❌"
 	default:
-		return "❓"
+		return "⏳"
 	}
+}
+
+func FormatBoletos(chatID int64, cpf string, boletos []model.Boleto) tgbotapi.MessageConfig {
+	var text string
+	text = fmt.Sprintf("📄 *Faturas e Boletos encontrados (%d):*\n\n", len(boletos))
+
+	for i, b := range boletos {
+		situacaoEmoji := getSituacaoEmoji(b.Situacao)
+		text += fmt.Sprintf("*%d.* %s %s\n", i+1, situacaoEmoji, b.Situacao)
+		text += fmt.Sprintf("🏦 *Instituição:* %s\n", b.NomeBeneficiario)
+		text += fmt.Sprintf("💰 *Valor:* R$ %.2f\n", b.Valor)
+		text += fmt.Sprintf("📅 *Vencimento:* %s\n", b.DataVencimento.Format("02/01/2006"))
+		text += fmt.Sprintf("💠 *PIX Copia e Cola para Pagamento:*\n`%s`\n", b.PixCopiaECola)
+		text += "-----------------------\n"
+	}
+
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = "Markdown"
+	return msg
+}
+
+func FormatLoans(chatID int64, boletos []model.Boleto) tgbotapi.MessageConfig {
+	var text string
+	text = fmt.Sprintf("💸 *Empréstimos e Financiamentos (%d):*\n\n", len(boletos))
+
+	for i, b := range boletos {
+		text += fmt.Sprintf("*%d. ⏳ CONTRATO ATIVO*\n", i+1)
+		text += fmt.Sprintf("🏦 *Modalidade:* %s\n", b.NomeBeneficiario)
+		text += fmt.Sprintf("💰 *Saldo Devedor Atual:* R$ %.2f\n", b.Valor)
+		text += fmt.Sprintf("📅 *Próxima Parcela:* %s\n", b.DataVencimento.Format("02/01/2006"))
+		text += fmt.Sprintf("💠 *Quitar / Amortizar via PIX:*\n`%s`\n", b.PixCopiaECola)
+		text += "-----------------------\n"
+	}
+
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = "Markdown"
+	return msg
+}
+
+func FormatMockExtrato(chatID int64) tgbotapi.MessageConfig {
+	text := "📊 *Entradas e Saídas - Últimos 7 dias*\n\n"
+	text += "🟢 *RECEBIDO (Entradas):*\n"
+	text += "• 15/05 - PIX Recebido (Sérgio S.): +R$ 1.500,00\n"
+	text += "• 12/05 - TED Recebida (AuraCorp): +R$ 3.450,20\n\n"
+	text += "🔴 *PERDEU / GASTOU (Saídas):*\n"
+	text += "• 16/05 - PIX Enviado (Mercado Livre): -R$ 149,90\n"
+	text += "• 14/05 - Débito (Posto Shell): -R$ 80,00\n"
+	text += "• 11/05 - Tarifa Bancária: -R$ 19,90\n\n"
+	text += "💰 *Saldo Consolidado:* R$ 4.700,40"
+
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = "Markdown"
+	return msg
 }

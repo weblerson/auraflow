@@ -16,5 +16,6 @@ func NewFinanceController(repo repository.FinanceRepository) *FinanceController 
 }
 
 func (c *FinanceController) ConsultarBoletos(cpf string) ([]model.Boleto, error) {
+	// Aqui chama o PluggyRepository agora
 	return c.repo.ConsultarBoletos(cpf)
 }
